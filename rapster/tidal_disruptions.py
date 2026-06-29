@@ -17,6 +17,7 @@
 '''
 
 from .constants import *
+import math
 from .functions import *
 from .stellar_evolution import *
 from .compact_accretion import *
@@ -107,7 +108,7 @@ def BH_TidalDisruptions(seed, t, z, k_tde, N_tde, tde_type, m_avg, m_star, R_sta
             r_t = R_star * (m/m_star)**(1/3)
             
             # pericenter radius:
-            r_p = np.sqrt(np.random.rand())*r_t
+            r_p = math.sqrt(np.random.rand())*r_t
             
             # penetration parameter:
             beta = r_t/r_p
@@ -139,7 +140,7 @@ def BH_TidalDisruptions(seed, t, z, k_tde, N_tde, tde_type, m_avg, m_star, R_sta
             
             # relative velocity:
             mean_mBH = (mBH_sum / n_bh) if use_fenwick else np.mean(mBH)
-            v_rel = np.sqrt(vSTAR**2*m_avg/m_star + mean_mBH/m*vBH**2)
+            v_rel = math.sqrt(vSTAR**2*m_avg/m_star + mean_mBH/m*vBH**2)
 
             # append tde:
             tdes.append([seed, t, z, tde_type, m_star, R_star, m, s, g, r_t, r_p, beta, iota, r_mb, dm, s_new, v_rel, h])  # list-accumulate (O(N) vs np.append O(N^2)); built to array at write_output
@@ -228,7 +229,7 @@ def try_BBH_star_disruption(rp, a, m1, m2, s1, s2, g1, g2, h1, h2, m_star, R_sta
         s2_new = evo2['chi'][-1]
 
         # relative velocity between the star and the binary's center of mass:
-        v_rel_tde = np.sqrt(v_star**2*m_avg/m_star + (m1+m2)/m_star*vBH**2)
+        v_rel_tde = math.sqrt(v_star**2*m_avg/m_star + (m1+m2)/m_star*vBH**2)
 
         # record one TDE entry per accreting BH; beta = r_t_bin/rp is the penetration parameter:
         tdes.append([seed, t, z, 22, m_star, R_star, m1, s1, g1, r_t_bin, rp, r_t_bin/rp, 0.0, 0.0, dm1, s1_new, v_rel_tde, h1])
@@ -262,7 +263,7 @@ def try_BBH_star_disruption(rp, a, m1, m2, s1, s2, g1, g2, h1, h2, m_star, R_sta
         evo = evolve_spin_during_accretion(Mi=m_d, Mf=m_d+dm, NS=NS, f=None, chi=s_d, dM=dm/100, eos=EoS, prograde=True)
         s_new = evo['chi'][-1]
 
-        v_rel_tde = np.sqrt(v_star**2*m_avg/m_star + np.mean([m1, m2])/m_star*vBH**2)
+        v_rel_tde = math.sqrt(v_star**2*m_avg/m_star + np.mean([m1, m2])/m_star*vBH**2)
 
         # record the TDE entry; beta = r_t/rp is the penetration parameter:
         tdes.append([seed, t, z, 21, m_star, R_star, m_d, s_d, g_d, r_t, rp, r_t/rp, 0.0, 0.0, dm, s_new, v_rel_tde, h_d])

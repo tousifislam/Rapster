@@ -17,6 +17,7 @@
 '''
 
 from .constants import *
+import math
 from .functions import *
 from .stellar_evolution import *
 from .tidal_disruptions import *
@@ -208,7 +209,7 @@ def BHstar_to_BBH(seed, t, z, k_ex2, N_ex2, m_avg, mBH, sBH, gBH, hBH, pairs, bi
                 sma = ap * m2 / m_avg
             
                 # eccentricity:
-                eccen = np.sqrt(np.random.rand())
+                eccen = math.sqrt(np.random.rand())
             
                 # append binary:
                 binaries = np.append(binaries, [[np.random.randint(0, 999999999), 1, sma, eccen, m1, m2, s1, s2, g1, g2, t, z, 0, h1, h2]], axis=0)

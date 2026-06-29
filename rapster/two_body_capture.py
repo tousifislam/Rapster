@@ -17,6 +17,7 @@
 '''
 
 from .constants import *
+import math
 from .functions import *
 from .remnant import *
 from .auxiliary import FenwickTree
@@ -159,7 +160,7 @@ def two_body_capture(seed, t, dt, z, zCl_form, k_2cap, mBH_avg, binaries, mBH, s
             h_rem = h1 + h2
 
             # relative velocity:
-            v_rel = get_maxwell_sample(np.sqrt(2/3) * vBH)
+            v_rel = get_maxwell_sample(math.sqrt(2/3) * vBH)
             
             # total mass:
             m12 = m1 + m2
@@ -171,13 +172,13 @@ def two_body_capture(seed, t, dt, z, zCl_form, k_2cap, mBH_avg, binaries, mBH, s
             b_max = (340 * np.pi / 3)**(1/7) * m12**(6/7) * mu**(1/7) / v_rel**(9/7) * G_Newton * c_light**(-5/7)
 
             # impact parameter sampled from uniform in b^2 distribution:
-            b = np.sqrt(np.random.rand() * b_max**2)
+            b = math.sqrt(np.random.rand() * b_max**2)
             
             # pericenter distance:
             rp = b**2 * v_rel**2 / 2 / G_Newton / m12
             
             # GW energy released:
-            E_gw = 85 * np.pi / 12 / np.sqrt(2) * mu**2 * m12**(5/2) / rp**(7/2) * G_Newton**(7/2) / c_light**5
+            E_gw = 85 * np.pi / 12 / math.sqrt(2) * mu**2 * m12**(5/2) / rp**(7/2) * G_Newton**(7/2) / c_light**5
             
             # final energy:
             E_fin = mu * v_rel**2 / 2 - E_gw
@@ -191,13 +192,13 @@ def two_body_capture(seed, t, dt, z, zCl_form, k_2cap, mBH_avg, binaries, mBH, s
                     break
                 
                 # impact parameter sampled from uniform in b^2 distribution:
-                b = np.sqrt(np.random.rand() * b_max**2)
+                b = math.sqrt(np.random.rand() * b_max**2)
                 
                 # pericenter distance:
                 rp = b**2 * v_rel**2 / 2 / G_Newton / m12
                 
                 # GW energy released:
-                E_gw = 85 * np.pi / 12 / np.sqrt(2) * mu**2 * m12**(5/2) / rp**(7/2) * G_Newton**(7/2) / c_light**5
+                E_gw = 85 * np.pi / 12 / math.sqrt(2) * mu**2 * m12**(5/2) / rp**(7/2) * G_Newton**(7/2) / c_light**5
                 
                 # final energy:
                 E_fin = mu * v_rel**2 / 2 - E_gw
@@ -209,7 +210,7 @@ def two_body_capture(seed, t, dt, z, zCl_form, k_2cap, mBH_avg, binaries, mBH, s
             sma = - G_Newton * m12 * mu / 2 / E_fin
             
             # eccentricity at formation:
-            eccen = np.sqrt(1 + 2 * E_fin * b**2 * v_rel**2 / m12**2 / mu / G_Newton**2)
+            eccen = math.sqrt(1 + 2 * E_fin * b**2 * v_rel**2 / m12**2 / mu / G_Newton**2)
             
             # consume the two captured BHs. Fenwick: mark them removed in the tree
             # (O(log N)) and record the indices for a single end-of-step compaction.
@@ -231,7 +232,7 @@ def two_body_capture(seed, t, dt, z, zCl_form, k_2cap, mBH_avg, binaries, mBH, s
             # check if binary merges within the current step:
             if T_GW(m1, m2, sma, eccen) < min(dt, lookback_interp(zCl_form) - t):
                 
-                if vGW_kick < 2 * np.sqrt(v_star**2 + vBH**2): # merger remnant retained in cluster
+                if vGW_kick < 2 * math.sqrt(v_star**2 + vBH**2): # merger remnant retained in cluster
                     
                     mBH_temp.append(m_rem)
                     sBH_temp.append(s_rem)

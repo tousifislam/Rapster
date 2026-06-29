@@ -18,6 +18,7 @@
 
 import sys
 from .constants import *
+import math
 from .functions import *
 from .remnant import *
 from .compact_accretion import *  # provides the evolve() spin-accretion routine
@@ -150,7 +151,7 @@ def evolve_BBHs(seed, t, z, dt, zCl_form, binaries, hardening, mergers, mBH, sBH
                 
                 # BBH-star interaction timescale (encounter cross-section set by the binary separation a):
                 if n_star>0:
-                    v_rel = np.sqrt(v_star**2 + vBH**2)  # relative velocity between star and BBH center of mass
+                    v_rel = math.sqrt(v_star**2 + vBH**2)  # relative velocity between star and BBH center of mass
                     t_BBH_star = 1 / Rate_int(m1 + m2 + m_avg, n_star, v_rel, kp_max * a)
                 else:
                     t_BBH_star = 1e100
@@ -207,7 +208,7 @@ def evolve_BBHs(seed, t, z, dt, zCl_form, binaries, hardening, mergers, mBH, sBH
                     g_rem = max(g1, g2) + 1
                     h_rem = h1 + h2
 
-                    if vGW_kick < 2 * np.sqrt(v_star**2 + vBH**2): # merger remnant retained in cluster
+                    if vGW_kick < 2 * math.sqrt(v_star**2 + vBH**2): # merger remnant retained in cluster
                         
                         mBH = np.append(mBH, m_rem)
                         sBH = np.append(sBH, s_rem)
@@ -348,8 +349,8 @@ def evolve_BBHs(seed, t, z, dt, zCl_form, binaries, hardening, mergers, mBH, sBH
                         
                     a_inner = a_hard
                     a_outer = a_soft * (m0 + m1) / m_freed
-                    e_inner = np.sqrt(np.random.rand())
-                    e_outer = np.sqrt(np.random.rand())
+                    e_inner = math.sqrt(np.random.rand())
+                    e_outer = math.sqrt(np.random.rand())
                     inclination1 = np.arccos(np.random.uniform(-1, 1))
                     inclination2 = np.arccos(np.random.uniform(-1, 1))
                     inclination = inclination1 + inclination2
@@ -414,7 +415,7 @@ def evolve_BBHs(seed, t, z, dt, zCl_form, binaries, hardening, mergers, mBH, sBH
                     # dispersion reflects energy equipartition with the star's own mass,
                     # anchored to the stellar population's characteristic energy scale
                     # (m_avg * v_star^2), mirroring the analogous BH formula below:
-                    vS_before = get_maxwell_sample(np.sqrt(m_avg * v_star**2 / 3 / m3))
+                    vS_before = get_maxwell_sample(math.sqrt(m_avg * v_star**2 / 3 / m3))
 
                 else: # BBH-BH occurs
 
@@ -445,11 +446,11 @@ def evolve_BBHs(seed, t, z, dt, zCl_form, binaries, hardening, mergers, mBH, sBH
                         if _be_tree is None:           # build once per unchanged-mBH run
                             _be_tree = FenwickTree(_be_pow32)   # cached mBH**(3/2)
                             _be_maxm = mBH.max()
-                        f_max = (M12 + _be_maxm) / np.sqrt(M12**(-2/5) + _be_maxm**(-2/5))
+                        f_max = (M12 + _be_maxm) / math.sqrt(M12**(-2/5) + _be_maxm**(-2/5))
                         while True:
                             k3 = _be_tree.sample()
                             mm = mBH[k3]
-                            if np.random.rand() < (M12 + mm) / np.sqrt(M12**(-2/5) + mm**(-2/5)) / f_max:
+                            if np.random.rand() < (M12 + mm) / math.sqrt(M12**(-2/5) + mm**(-2/5)) / f_max:
                                 break
                         m3 = mBH[k3]
                     else:
@@ -471,16 +472,16 @@ def evolve_BBHs(seed, t, z, dt, zCl_form, binaries, hardening, mergers, mBH, sBH
                     h3 = hBH[k3]
                     
                     # sample single velocity before interaction:
-                    vS_before = get_maxwell_sample(np.sqrt(mBH_avg * vBH**2 / 3 / m3))
+                    vS_before = get_maxwell_sample(math.sqrt(mBH_avg * vBH**2 / 3 / m3))
                     
                 # sample binary velocity before interaction:
-                vB_before = get_maxwell_sample(np.sqrt(mBH_avg * vBH**2 / 3 / (m1 + m2)))
+                vB_before = get_maxwell_sample(math.sqrt(mBH_avg * vBH**2 / 3 / (m1 + m2)))
 
                 # sample cosine angle before interaction:
                 cos_theta_before = np.random.uniform(-1, 1)
                 
                 # relative velocity before interaction:
-                v_rel_before = np.sqrt(vB_before**2 + vS_before**2 - 2 * vB_before * vS_before * cos_theta_before)
+                v_rel_before = math.sqrt(vB_before**2 + vS_before**2 - 2 * vB_before * vS_before * cos_theta_before)
                 
                 # reduced mass before interaction:
                 mu_before = (m1 + m2) * m3 / (m1 + m2 + m3)
@@ -549,7 +550,7 @@ def evolve_BBHs(seed, t, z, dt, zCl_form, binaries, hardening, mergers, mBH, sBH
                     a_3bm = a / (m1*m2) * np.array([m1*m2, m2*m3, m3*m1])
                     
                     # critical pericenter distances for GW capture merger during binary-single interaction:
-                    rp_3bm_c = (85 * np.pi / 3 / np.sqrt(2))**(2/7) * a**(2/7) / 2 \
+                    rp_3bm_c = (85 * np.pi / 3 / math.sqrt(2))**(2/7) * a**(2/7) / 2 \
                         * np.array([(2 * G_Newton * (m1 * m2)**(4/5) *(m1 + m2)**(1/5) /(m1*m2)**(2/5) /c_light**2)**(5/7),
                                     (2 * G_Newton * (m2 * m3)**(4/5) *(m2 + m3)**(1/5) /(m1*m2)**(2/5) /c_light**2)**(5/7),
                                     (2 * G_Newton * (m3 * m1)**(4/5) *(m3 + m1)**(1/5) /(m1*m2)**(2/5) /c_light**2)**(5/7)])
@@ -589,7 +590,7 @@ def evolve_BBHs(seed, t, z, dt, zCl_form, binaries, hardening, mergers, mBH, sBH
                         sma = a_3bm[j_3bm]
                         eccen = e_3bm[j_3bm]
                         
-                        if vGW_kick < 2 * np.sqrt(v_star**2 + vBH**2): # merger remnant retained in cluster
+                        if vGW_kick < 2 * math.sqrt(v_star**2 + vBH**2): # merger remnant retained in cluster
                             
                             mBH = np.append(mBH, m_rem)
                             sBH = np.append(sBH, s_rem)
@@ -697,7 +698,7 @@ def evolve_BBHs(seed, t, z, dt, zCl_form, binaries, hardening, mergers, mBH, sBH
                     
                 # Binary hardening:
                 binaries[i][2] = a / (1 + Hardening_constant * m3 / (m1 + m2))
-                binaries[i][3] = np.sqrt(np.random.rand())
+                binaries[i][3] = math.sqrt(np.random.rand())
                 
                 # energy extracted:
                 dE_b = G_Newton * m1 * m2 / 2 * (1/binaries[i][2] - 1/a)
@@ -709,7 +710,7 @@ def evolve_BBHs(seed, t, z, dt, zCl_form, binaries, hardening, mergers, mBH, sBH
                 mu_after = (m1 + m2) * m3 / (m1 + m2 + m3)
                 
                 # relative velocity after interaction:
-                v_rel_after = np.sqrt(mu_before / mu_after * v_rel_before**2 + 2 / mu_after * dE_b)
+                v_rel_after = math.sqrt(mu_before / mu_after * v_rel_before**2 + 2 / mu_after * dE_b)
                 
                 # velocity of single after interaction:
                 v3_after = (m1 + m2) / (m1 + m2 + m3) * v_rel_after
@@ -718,7 +719,7 @@ def evolve_BBHs(seed, t, z, dt, zCl_form, binaries, hardening, mergers, mBH, sBH
                 v12_after = m3 / (m1 + m2 + m3) * v_rel_after
                 
                 # check if single is ejected:
-                if v3_after > 2 * np.sqrt(v_star**2 + vBH**2) and type_int==2:
+                if v3_after > 2 * math.sqrt(v_star**2 + vBH**2) and type_int==2:
                     
                     mBH = np.delete(mBH, k3)
                     sBH = np.delete(sBH, k3)
@@ -730,12 +731,12 @@ def evolve_BBHs(seed, t, z, dt, zCl_form, binaries, hardening, mergers, mBH, sBH
                     N_BHej+=1
                     
                 if v12_after > 2 * vBH \
-                   and v12_after < 2 * np.sqrt(v_star**2 + vBH**2): # binary convection
+                   and v12_after < 2 * math.sqrt(v_star**2 + vBH**2): # binary convection
                     
                     t_conv = m_avg / (m1 + m2) * t_rlx
                     
                 # check if binary is ejected:
-                if v12_after > 2 * np.sqrt(v_star**2 + vBH**2):
+                if v12_after > 2 * math.sqrt(v_star**2 + vBH**2):
                     
                     # check if BBH mergers in the field:
                     if t + t_local + T_GW(m1, m2, a, e) < lookback_interp(zCl_form): # BBH merges

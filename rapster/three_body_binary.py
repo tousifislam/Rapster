@@ -17,6 +17,7 @@
 '''
 
 from .constants import *
+import math
 from .functions import *
 from .auxiliary import FenwickTree
 
@@ -163,7 +164,7 @@ def three_body_binary(t, z, k_3bb, mBH_avg, binaries, mBH, sBH, gBH, hBH, vBH, N
             sma = G_Newton * m1 * m2 / eta / m3 / vBH**2
 
             # eccentricity (thermal):
-            eccen = np.sqrt(np.random.rand())
+            eccen = math.sqrt(np.random.rand())
 
             # append binary:
             binaries = np.append(binaries, [[np.random.randint(0, 999999999), 3, sma, eccen, m1, m2, sBH[k1], sBH[k2], gBH[k1], gBH[k2], t, z, 0, hBH[k1], hBH[k2]]], axis=0)
