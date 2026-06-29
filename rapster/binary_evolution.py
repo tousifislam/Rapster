@@ -244,8 +244,8 @@ def evolve_BBHs(seed, t, z, dt, zCl_form, binaries, hardening, mergers, mBH, sBH
                     s_eff = (m1 * s1 * np.cos(theta1) + m2 * s2 * np.cos(theta2)) / (m1 + m2)
                     
                     # append merger:
-                    mergers = np.append(mergers, [[seed, ind, channel, a, e, m1, m2, s1, s2, g1, g2, theta1, theta2, dPhi, t_form, z_form,
-                                                   t + t_local + T_GW(m1, m2, a, e), redshift_interp(lookback_interp(zCl_form) - t - t_local - T_GW(m1, m2, a, e)), m_rem, s_rem, g_rem, vGW_kick, s_eff, q, 2*v_star, h1, h2]], axis=0)
+                    mergers.append([seed, ind, channel, a, e, m1, m2, s1, s2, g1, g2, theta1, theta2, dPhi, t_form, z_form,
+                                    t + t_local + T_GW(m1, m2, a, e), redshift_interp(lookback_interp(zCl_form) - t - t_local - T_GW(m1, m2, a, e)), m_rem, s_rem, g_rem, vGW_kick, s_eff, q, 2*v_star, h1, h2])
                     
                     binaries = np.delete(binaries, i, axis=0)
                     
@@ -622,9 +622,9 @@ def evolve_BBHs(seed, t, z, dt, zCl_form, binaries, hardening, mergers, mBH, sBH
                         s_eff = (m1 * s1 * np.cos(theta1) + m2 * s2 * np.cos(theta2)) / (m1 + m2)
                         
                         # append merger:
-                        mergers = np.append(mergers,
-                                            [[seed, ind, 6, sma, eccen, m1, m2, s1, s2, g1, g2, theta1, theta2, dPhi, t_form, z_form, 
-                                              t + t_local + T_GW(mA, mB, sma, eccen), redshift_interp(lookback_interp(zCl_form) - t - t_local - T_GW(mA, mB, sma, eccen)), m_rem, s_rem, g_rem, vGW_kick, s_eff, q, 2*v_star, h1, h2]], axis=0)
+                        mergers.append(
+                                            [seed, ind, 6, sma, eccen, m1, m2, s1, s2, g1, g2, theta1, theta2, dPhi, t_form, z_form,
+                                              t + t_local + T_GW(mA, mB, sma, eccen), redshift_interp(lookback_interp(zCl_form) - t - t_local - T_GW(mA, mB, sma, eccen)), m_rem, s_rem, g_rem, vGW_kick, s_eff, q, 2*v_star, h1, h2])
                         
                         # delete BBH:
                         binaries = np.delete(binaries, i, axis=0)
@@ -769,8 +769,8 @@ def evolve_BBHs(seed, t, z, dt, zCl_form, binaries, hardening, mergers, mBH, sBH
                         s_eff = (m1 * s1 * np.cos(theta1) + m2 * s2 * np.cos(theta2)) / (m1 + m2)
                         
                         # append merger:
-                        mergers = np.append(mergers, [[seed, ind, -channel, a, e, m1, m2, s1, s2, g1, g2, theta1, theta2, dPhi, t_form, z_form, t_merge,
-                                                       redshift_interp(lookback_interp(zCl_form) - t_merge), m_rem, s_rem, g_rem, vGW_kick, s_eff, q, 2*v_star, h1, h2]], axis=0)
+                        mergers.append([seed, ind, -channel, a, e, m1, m2, s1, s2, g1, g2, theta1, theta2, dPhi, t_form, z_form, t_merge,
+                                        redshift_interp(lookback_interp(zCl_form) - t_merge), m_rem, s_rem, g_rem, vGW_kick, s_eff, q, 2*v_star, h1, h2])
                         
                     binaries = np.delete(binaries, i, axis=0)
                     

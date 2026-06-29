@@ -277,10 +277,10 @@ def initialize_cluster(config):
     binaries = np.zeros(shape=(1, 15))
     pairs = np.zeros(shape=(1, 5))
     triples = np.zeros(shape=(1, 24))
-    mergers = np.zeros(shape=(1, 27))
+    mergers = [[0.0] * 27]     # list-accumulated (one placeholder row); -> array at write_output
     evolution = [[0.0] * 70]   # list-accumulated (one placeholder row); -> array at write_output
     hardening = [[0.0] * 12]   # list-accumulated (one placeholder row); -> array at write_output
-    tdes = np.zeros(shape=(1, 18))
+    tdes = [[0.0] * 18]        # list-accumulated (one placeholder row); -> array at write_output
 
     configure_kick_model(config['recoil_kick_model'])
 
@@ -1261,10 +1261,10 @@ def write_output(state, config):
         state (dict): Simulation state at the end of the run.
         config (dict): Configuration dictionary.
     """
-    mergers = np.delete(state['mergers'], 0, axis=0)
+    mergers = np.array(state['mergers'], dtype=float)[1:]       # list -> array, drop placeholder row
     evolution = np.array(state['evolution'], dtype=float)[1:]   # list -> array, drop placeholder row
     hardening = np.array(state['hardening'], dtype=float)[1:]   # list -> array, drop placeholder row
-    tdes = np.delete(state['tdes'], 0, axis=0)
+    tdes = np.array(state['tdes'], dtype=float)[1:]             # list -> array, drop placeholder row
 
     CURRENT_WORKING_DIR = os.getcwd()
     RESULTS_DIR = os.path.join(CURRENT_WORKING_DIR, config['results_folder_name'])

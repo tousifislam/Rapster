@@ -142,7 +142,7 @@ def BH_TidalDisruptions(seed, t, z, k_tde, N_tde, tde_type, m_avg, m_star, R_sta
             v_rel = np.sqrt(vSTAR**2*m_avg/m_star + mean_mBH/m*vBH**2)
 
             # append tde:
-            tdes = np.append(tdes, [[seed, t, z, tde_type, m_star, R_star, m, s, g, r_t, r_p, beta, iota, r_mb, dm, s_new, v_rel, h]], axis=0)
+            tdes.append([seed, t, z, tde_type, m_star, R_star, m, s, g, r_t, r_p, beta, iota, r_mb, dm, s_new, v_rel, h])  # list-accumulate (O(N) vs np.append O(N^2)); built to array at write_output
 
             # update BH mass:
             mBH[k] = m + dm
@@ -231,8 +231,8 @@ def try_BBH_star_disruption(rp, a, m1, m2, s1, s2, g1, g2, h1, h2, m_star, R_sta
         v_rel_tde = np.sqrt(v_star**2*m_avg/m_star + (m1+m2)/m_star*vBH**2)
 
         # record one TDE entry per accreting BH; beta = r_t_bin/rp is the penetration parameter:
-        tdes = np.append(tdes, [[seed, t, z, 22, m_star, R_star, m1, s1, g1, r_t_bin, rp, r_t_bin/rp, 0.0, 0.0, dm1, s1_new, v_rel_tde, h1]], axis=0)
-        tdes = np.append(tdes, [[seed, t, z, 22, m_star, R_star, m2, s2, g2, r_t_bin, rp, r_t_bin/rp, 0.0, 0.0, dm2, s2_new, v_rel_tde, h2]], axis=0)
+        tdes.append([seed, t, z, 22, m_star, R_star, m1, s1, g1, r_t_bin, rp, r_t_bin/rp, 0.0, 0.0, dm1, s1_new, v_rel_tde, h1])
+        tdes.append([seed, t, z, 22, m_star, R_star, m2, s2, g2, r_t_bin, rp, r_t_bin/rp, 0.0, 0.0, dm2, s2_new, v_rel_tde, h2])
 
         m1 = m1 + dm1; s1 = s1_new; h1 = h1 + 1
         m2 = m2 + dm2; s2 = s2_new; h2 = h2 + 1
@@ -265,7 +265,7 @@ def try_BBH_star_disruption(rp, a, m1, m2, s1, s2, g1, g2, h1, h2, m_star, R_sta
         v_rel_tde = np.sqrt(v_star**2*m_avg/m_star + np.mean([m1, m2])/m_star*vBH**2)
 
         # record the TDE entry; beta = r_t/rp is the penetration parameter:
-        tdes = np.append(tdes, [[seed, t, z, 21, m_star, R_star, m_d, s_d, g_d, r_t, rp, r_t/rp, 0.0, 0.0, dm, s_new, v_rel_tde, h_d]], axis=0)
+        tdes.append([seed, t, z, 21, m_star, R_star, m_d, s_d, g_d, r_t, rp, r_t/rp, 0.0, 0.0, dm, s_new, v_rel_tde, h_d])
 
         if disrupt_1:
             m1 = m_d + dm; s1 = s_new; h1 = h_d + 1

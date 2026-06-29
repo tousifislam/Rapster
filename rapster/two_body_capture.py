@@ -19,25 +19,32 @@
 from .constants import *
 from .functions import *
 from .remnant import *
+from .auxiliary import FenwickTree
 
-def fast_sample_2capture(mBH, n_samples=1):
+def fast_sample_2capture(mBH, n_samples=1, weights=None, weight_sum=None, max_weight_factor=None):
     """
     Fast sampling for using rejection sampling with complexity O(N).
 
     @in mBH: array of BH masses
     @in n_samples: number of samples (m1, m2)
+    @in weights, weight_sum, max_weight_factor: optional precomputed proposal.
+        Default (None) -> rebuild the proposal from mBH each call (exact, the
+        default path). Approx path: the caller passes the precomputed/
+        incrementally-maintained m^(2/7) weights, their running sum, and the
+        (fixed) max_weight_factor, avoiding the per-call O(N) pow/sum/max.
     """
-    
-    # Pre-calculate individual weights based on the separable part: m^(2/7)
-    # This acts as our "proposal" distribution.
-    individual_weights = mBH**(2/7)
-    p_proposal = individual_weights / individual_weights.sum()
-    
-    max_m = np.max(mBH)
-    # The maximum possible value of the non-separable part (m1 + m2)^(10/7)
-    # used to normalize the rejection criteria.
-    max_weight_factor = (2 * max_m)**(10/7)
-    
+
+    if weights is None:
+        # Pre-calculate individual weights based on the separable part: m^(2/7)
+        # This acts as our "proposal" distribution.
+        weights = mBH**(2/7)
+        weight_sum = weights.sum()
+        # The maximum possible value of the non-separable part (m1 + m2)^(10/7)
+        # used to normalize the rejection criteria.
+        max_weight_factor = (2 * np.max(mBH))**(10/7)
+
+    p_proposal = weights / weight_sum
+
     results = []
     while len(results) < n_samples:
         # Sample two candidates based on p_proposal
@@ -53,7 +60,7 @@ def fast_sample_2capture(mBH, n_samples=1):
             
     return results[0] if n_samples == 1 else results
 
-def two_body_capture(seed, t, dt, z, zCl_form, k_2cap, mBH_avg, binaries, mBH, sBH, gBH, hBH, vBH, v_star, N_2cap, N_BH, N_BBH, N_me, N_meRe, N_meEj, mergers, random_pairing=False):
+def two_body_capture(seed, t, dt, z, zCl_form, k_2cap, mBH_avg, binaries, mBH, sBH, gBH, hBH, vBH, v_star, N_2cap, N_BH, N_BBH, N_me, N_meRe, N_meEj, mergers, random_pairing=False, approx_mBH_sampling=False):
     """
     @in seed: simulation seed number
     @in t: simulation time
@@ -88,29 +95,58 @@ def two_body_capture(seed, t, dt, z, zCl_form, k_2cap, mBH_avg, binaries, mBH, s
         gBH_temp = []
         hBH_temp = []
 
+        # approx_mBH_sampling: 0 = exact (np.random.choice / fast_sample_2capture);
+        # 1 = Fenwick-tree sampling. The Fenwick path builds the m^(2/7) proposal
+        # tree ONCE, draws + removes BHs in O(log N) (the tree returns indices, so
+        # no np.where), and DEFERS the BH-array deletions to a single end-of-step
+        # compaction (consumed indices collected below). Statistically equivalent
+        # to the exact path (validated by distribution), not bit-identical.
+        use_fenwick = (approx_mBH_sampling == 1) and len(mBH) >= 2
+        if use_fenwick:
+            fw_weights = np.ones(len(mBH)) if random_pairing else mBH**(2/7)
+            tree = FenwickTree(fw_weights)
+            consumed = []
+            n_alive = len(mBH)
+            max_wf = (2 * np.max(mBH))**(10/7)   # fixed rejection bound (mBH only shrinks)
+
         for i in range(k_2cap):
-            if len(mBH) < 2:
-                break # avoid infinite loop in the fast_sample_2capture function.
-            
-            # sample the masses that form the captured binary:
-            if random_pairing:
-                m1, m2 = np.random.choice(mBH, size=2, replace=False)
+
+            # sample the two BHs that form the captured binary, getting their
+            # indices k1, k2 into the (current) mBH array:
+            if use_fenwick:
+                if n_alive < 2:
+                    break
+                pair = tree.sample_indices(2, replace=False)
+                if not random_pairing:
+                    # rejection on the interaction term (same target as fast_sample_2capture)
+                    while pair.size >= 2 and np.random.rand() >= (mBH[pair[0]] + mBH[pair[1]])**(10/7) / max_wf:
+                        pair = tree.sample_indices(2, replace=False)
+                if pair.size < 2:
+                    break
+                k1, k2 = int(pair[0]), int(pair[1])
+                m1, m2 = mBH[k1], mBH[k2]
             else:
-                m1, m2 = fast_sample_2capture(mBH, n_samples=1)
-            
-            # find index locations of the sampled BHs:
-            k1 = np.squeeze(np.where(mBH==m1))+0
-            k2 = np.squeeze(np.where(mBH==m2))+0
+                if len(mBH) < 2:
+                    break # avoid infinite loop in the fast_sample_2capture function.
 
-            k1 = int(np.atleast_1d(k1)[0])
-            k2 = int(np.atleast_1d(k2)[0])
+                if random_pairing:
+                    m1, m2 = np.random.choice(mBH, size=2, replace=False)
+                else:
+                    m1, m2 = fast_sample_2capture(mBH, n_samples=1)
 
-            if k1 == k2:
-                candidates = np.where(mBH == m2)[0]
-                k2 = int(candidates[1]) if len(candidates) > 1 else None
-                if k2 is None:
-                    continue
-                
+                # find index locations of the sampled BHs:
+                k1 = np.squeeze(np.where(mBH==m1))+0
+                k2 = np.squeeze(np.where(mBH==m2))+0
+
+                k1 = int(np.atleast_1d(k1)[0])
+                k2 = int(np.atleast_1d(k2)[0])
+
+                if k1 == k2:
+                    candidates = np.where(mBH == m2)[0]
+                    k2 = int(candidates[1]) if len(candidates) > 1 else None
+                    if k2 is None:
+                        continue
+
             s1 = sBH[k1]; g1 = gBH[k1]; h1 = hBH[k1]
             s2 = sBH[k2]; g2 = gBH[k2]; h2 = hBH[k2]
             
@@ -175,12 +211,21 @@ def two_body_capture(seed, t, dt, z, zCl_form, k_2cap, mBH_avg, binaries, mBH, s
             # eccentricity at formation:
             eccen = np.sqrt(1 + 2 * E_fin * b**2 * v_rel**2 / m12**2 / mu / G_Newton**2)
             
-            # delete captured BHs:
-            mBH = np.delete(mBH, [k1, k2])
-            sBH = np.delete(sBH, [k1, k2])
-            gBH = np.delete(gBH, [k1, k2])
-            hBH = np.delete(hBH, [k1, k2])
-            
+            # consume the two captured BHs. Fenwick: mark them removed in the tree
+            # (O(log N)) and record the indices for a single end-of-step compaction.
+            # Exact: delete from the BH arrays now (indices track the shrinking mBH).
+            if use_fenwick:
+                tree.remove(k1)
+                tree.remove(k2)
+                consumed.append(k1)
+                consumed.append(k2)
+                n_alive -= 2
+            else:
+                mBH = np.delete(mBH, [k1, k2])
+                sBH = np.delete(sBH, [k1, k2])
+                gBH = np.delete(gBH, [k1, k2])
+                hBH = np.delete(hBH, [k1, k2])
+
             N_2cap+=1
             
             # check if binary merges within the current step:
@@ -222,8 +267,8 @@ def two_body_capture(seed, t, dt, z, zCl_form, k_2cap, mBH_avg, binaries, mBH, s
                 s_eff = (m1 * s1 * np.cos(theta1) + m2 * s2 * np.cos(theta2)) / (m1 + m2)
                 
                 # append merger:
-                mergers = np.append(mergers, [[seed, ind, 2, sma, eccen, m1, m2, s1, s2, g1, g2, theta1, theta2, dPhi, t, z, t + T_GW(m1, m2, sma, eccen),
-                                               redshift_interp(lookback_interp(zCl_form) - t - T_GW(m1, m2, sma, eccen)), m_rem, s_rem, g_rem, vGW_kick, s_eff, q, 2*v_star, h1, h2]], axis=0)
+                mergers.append([seed, ind, 2, sma, eccen, m1, m2, s1, s2, g1, g2, theta1, theta2, dPhi, t, z, t + T_GW(m1, m2, sma, eccen),
+                                redshift_interp(lookback_interp(zCl_form) - t - T_GW(m1, m2, sma, eccen)), m_rem, s_rem, g_rem, vGW_kick, s_eff, q, 2*v_star, h1, h2])
 
             else:
                 
@@ -232,6 +277,14 @@ def two_body_capture(seed, t, dt, z, zCl_form, k_2cap, mBH_avg, binaries, mBH, s
                 
                 N_BBH+=1
                 
+        # Fenwick path: apply the deferred BH-array deletions in a single pass
+        # (consumed holds the indices into the unmodified mBH/sBH/gBH/hBH).
+        if use_fenwick and consumed:
+            mBH = np.delete(mBH, consumed)
+            sBH = np.delete(sBH, consumed)
+            gBH = np.delete(gBH, consumed)
+            hBH = np.delete(hBH, consumed)
+
         mBH_temp = np.array(mBH_temp)
         sBH_temp = np.array(sBH_temp)
         gBH_temp = np.array(gBH_temp)
