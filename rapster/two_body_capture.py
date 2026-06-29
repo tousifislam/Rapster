@@ -155,7 +155,7 @@ def two_body_capture(seed, t, dt, z, zCl_form, k_2cap, mBH_avg, binaries, mBH, s
             theta1, theta2, dPhi = sample_angles()
             
             m_rem, s_rem, vGW_kick = merger_remnant(m1, m2, sBH[k1], sBH[k2], theta1, theta2, dPhi)
-            g_rem = np.max([gBH[k1], gBH[k2]]) + 1
+            g_rem = max(gBH[k1], gBH[k2]) + 1
             h_rem = h1 + h2
 
             # relative velocity:
@@ -229,7 +229,7 @@ def two_body_capture(seed, t, dt, z, zCl_form, k_2cap, mBH_avg, binaries, mBH, s
             N_2cap+=1
             
             # check if binary merges within the current step:
-            if T_GW(m1, m2, sma, eccen) < np.min([dt, lookback_interp(zCl_form) - t]):
+            if T_GW(m1, m2, sma, eccen) < min(dt, lookback_interp(zCl_form) - t):
                 
                 if vGW_kick < 2 * np.sqrt(v_star**2 + vBH**2): # merger remnant retained in cluster
                     

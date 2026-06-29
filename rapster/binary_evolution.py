@@ -141,7 +141,7 @@ def evolve_BBHs(seed, t, z, dt, zCl_form, binaries, hardening, mergers, mBH, sBH
                 s2 = binaries[i][7]
                 g1 = binaries[i][8]
                 g2 = binaries[i][9]
-                q = np.min([m1, m2])/np.max([m1, m2])
+                q = min(m1, m2)/max(m1, m2)
                 t_form = binaries[i][10]
                 z_form = binaries[i][11]
                 Nex = binaries[i][12]
@@ -199,12 +199,12 @@ def evolve_BBHs(seed, t, z, dt, zCl_form, binaries, hardening, mergers, mBH, sBH
                 if condition>0:
                     break
                 
-                if T_GW(m1, m2, a, e) < np.min([dt_local, dt, lookback_interp(zCl_form) - t - t_local]): # 2-body in-cluster merger during the current time-step
+                if T_GW(m1, m2, a, e) < min(dt_local, dt, lookback_interp(zCl_form) - t - t_local): # 2-body in-cluster merger during the current time-step
                     
                     theta1, theta2, dPhi = sample_angles()
                     
                     m_rem, s_rem, vGW_kick = merger_remnant(m1, m2, s1, s2, theta1, theta2, dPhi)
-                    g_rem = np.max([g1, g2]) + 1
+                    g_rem = max(g1, g2) + 1
                     h_rem = h1 + h2
 
                     if vGW_kick < 2 * np.sqrt(v_star**2 + vBH**2): # merger remnant retained in cluster
@@ -510,7 +510,7 @@ def evolve_BBHs(seed, t, z, dt, zCl_form, binaries, hardening, mergers, mBH, sBH
                 rp = np.random.uniform(0, kp_max * a)
 
                 # critical pericenter for resonant interaction:
-                rp_c = np.max([m1, m2]) / (m1 + m2) * a
+                rp_c = max(m1, m2) / (m1 + m2) * a
 
                 if type_int==1: # check for tidal disruption on this passage
                     disrupted, m1, m2, s1, s2, h1, h2, tdes = try_BBH_star_disruption(
@@ -583,7 +583,7 @@ def evolve_BBHs(seed, t, z, dt, zCl_form, binaries, hardening, mergers, mBH, sBH
                         thetaA, thetaB, dPhi = sample_angles()
                             
                         m_rem, s_rem, vGW_kick = merger_remnant(mA, mB, sA, sB, thetaA, thetaB, dPhi)
-                        g_rem = np.max([gA, gB]) + 1
+                        g_rem = max(gA, gB) + 1
                         h_rem = h1 + h2
                         
                         sma = a_3bm[j_3bm]
@@ -642,7 +642,7 @@ def evolve_BBHs(seed, t, z, dt, zCl_form, binaries, hardening, mergers, mBH, sBH
                         hardening[i][10]=condition
                         break
                         
-                if m3>np.min([m1, m2]) and rp<rp_c and type_int==2: # exchange occurs
+                if m3>min(m1, m2) and rp<rp_c and type_int==2: # exchange occurs
 
                     N_ex+=1
                     binaries[i][12]+=1
@@ -743,7 +743,7 @@ def evolve_BBHs(seed, t, z, dt, zCl_form, binaries, hardening, mergers, mBH, sBH
                         theta1, theta2, dPhi = sample_angles()
                         
                         m_rem, s_rem, vGW_kick = merger_remnant(m1, m2, s1, s2, theta1, theta2, dPhi)
-                        g_rem = np.max([g1, g2]) + 1
+                        g_rem = max(g1, g2) + 1
                         h_rem = h1 + h2
 
                         N_me+=1
