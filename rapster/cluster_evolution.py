@@ -695,7 +695,7 @@ def form_binaries(state, config):
     k_3bb = np.min([poisson.rvs(mu=dt / t_3bb), int(N_BHsin / 3)])
 
     # 3bb formation:
-    t, z, k_3bb, mBH_avg, binaries, mBH, sBH, gBH, hBH, vBH, N_3bb, N_BBH = three_body_binary(t, z, k_3bb, mBH_avg, binaries, mBH, sBH, gBH, hBH, vBH, N_3bb, N_BBH, random_pairing=config['random_pairing'])
+    t, z, k_3bb, mBH_avg, binaries, mBH, sBH, gBH, hBH, vBH, N_3bb, N_BBH = three_body_binary(t, z, k_3bb, mBH_avg, binaries, mBH, sBH, gBH, hBH, vBH, N_3bb, N_BBH, random_pairing=config['random_pairing'], approx_mBH_sampling=config['approx_mBH_sampling'])
 
     # number of 2-body captures:
     N_BHsin = N_BH - 2*N_BBH - N_BHstar - 3*N_Triples
@@ -703,7 +703,7 @@ def form_binaries(state, config):
 
     # 2-body capture(s):
     seed, t, dt, z, zCl_form, k_2cap, mBH_avg, binaries, mBH, sBH, gBH, hBH, vBH, v_star, N_2cap, N_BH, N_BBH, N_me, N_meRe, N_meEj, mergers = \
-        two_body_capture(seed, t, dt, z, zCl_form, k_2cap, mBH_avg, binaries, mBH, sBH, gBH, hBH, vBH, v_star, N_2cap, N_BH, N_BBH, N_me, N_meRe, N_meEj, mergers, random_pairing=config['random_pairing'])
+        two_body_capture(seed, t, dt, z, zCl_form, k_2cap, mBH_avg, binaries, mBH, sBH, gBH, hBH, vBH, v_star, N_2cap, N_BH, N_BBH, N_me, N_meRe, N_meEj, mergers, random_pairing=config['random_pairing'], approx_mBH_sampling=config['approx_mBH_sampling'])
 
     # number of star-star -> BH-star exchanges:
     N_BHsin = N_BH - 2*N_BBH - N_BHstar - 3*N_Triples
@@ -778,7 +778,7 @@ def evolve_interactions(state, config):
     EoS = config['EoS']
 
     # BBH evolution:
-    seed, t, z, dt, zCl_form, binaries, hardening, mergers, mBH, sBH, gBH, hBH, n_star, v_star, vBH, t_rlx, m_avg, mBH_avg, na_BH, nc_BH, N_BH, N_BBH, N_me, N_me2b, N_3cap, N_meFi, N_meRe, N_meEj, N_dis, N_ex, N_BHej, N_BBHej, N_hardening, Vc_BH, N_bb, triples, N_Triples, tdes, N_tdeBBHstar, m_min, m_max, f_accreted, EoS = evolve_BBHs(seed, t, z, dt, zCl_form, binaries, hardening, mergers, mBH, sBH, gBH, hBH, n_star, v_star, vBH, t_rlx, m_avg, mBH_avg, na_BH, nc_BH, N_BH, N_BBH, N_me, N_me2b, N_3cap, N_meFi, N_meRe, N_meEj, N_dis, N_ex, N_BHej, N_BBHej, N_hardening, Vc_BH, N_bb, triples, N_Triples, tdes, N_tdeBBHstar, m_min, m_max, f_accreted, EoS)
+    seed, t, z, dt, zCl_form, binaries, hardening, mergers, mBH, sBH, gBH, hBH, n_star, v_star, vBH, t_rlx, m_avg, mBH_avg, na_BH, nc_BH, N_BH, N_BBH, N_me, N_me2b, N_3cap, N_meFi, N_meRe, N_meEj, N_dis, N_ex, N_BHej, N_BBHej, N_hardening, Vc_BH, N_bb, triples, N_Triples, tdes, N_tdeBBHstar, m_min, m_max, f_accreted, EoS = evolve_BBHs(seed, t, z, dt, zCl_form, binaries, hardening, mergers, mBH, sBH, gBH, hBH, n_star, v_star, vBH, t_rlx, m_avg, mBH_avg, na_BH, nc_BH, N_BH, N_BBH, N_me, N_me2b, N_3cap, N_meFi, N_meRe, N_meEj, N_dis, N_ex, N_BHej, N_BBHej, N_hardening, Vc_BH, N_bb, triples, N_Triples, tdes, N_tdeBBHstar, m_min, m_max, f_accreted, EoS, approx_mBH_sampling=config['approx_mBH_sampling'])
 
     # average BBH number density:
     if i_aux1==1:
@@ -825,6 +825,8 @@ def evolve_interactions(state, config):
             valid = np.where(smas * masses > 0)[0]
             if len(valid) < 2:
                 break
+            # Exact on purpose (no Fenwick): draws over the BINARY population `smas`
+            # (~10^3), not the BH population, so the O(N) cost is already small.
             a1, a2 = np.random.choice(smas[valid], size=2, replace=False, p=(smas*masses)[valid] / np.sum((smas*masses)[valid]))
 
             k1 = np.squeeze(np.where(smas==a1))+0
@@ -983,7 +985,7 @@ def evolve_tdes(state, config):
     # execute BH-WD tidal disruption events:
     if k_tdeBHWD > 0:
         tde_type = 11
-        seed, t, z, k_tdeBHWD, N_tdeBHWD, tde_type, m_avg, m_WD, R_WD, mBH, sBH, gBH, hBH, v_star, vBH, tdes, binaries, pairs, f_accreted, EoS = BH_TidalDisruptions(seed, t, z, k_tdeBHWD, N_tdeBHWD, tde_type, m_avg, m_WD, R_WD, mBH, sBH, gBH, hBH, v_WD, vBH, tdes, binaries, pairs, f_accreted, EoS)
+        seed, t, z, k_tdeBHWD, N_tdeBHWD, tde_type, m_avg, m_WD, R_WD, mBH, sBH, gBH, hBH, v_star, vBH, tdes, binaries, pairs, f_accreted, EoS = BH_TidalDisruptions(seed, t, z, k_tdeBHWD, N_tdeBHWD, tde_type, m_avg, m_WD, R_WD, mBH, sBH, gBH, hBH, v_WD, vBH, tdes, binaries, pairs, f_accreted, EoS, approx_mBH_sampling=config['approx_mBH_sampling'])
 
     # micro-TDEs:
     v_BHstar = np.sqrt(v_star**2 + vBH**2)
@@ -1000,7 +1002,7 @@ def evolve_tdes(state, config):
         # Sample star mass from evolving mass function:
         m_star, R_star = get_star(t, tBH_form, m_min, m_max)
 
-        seed, t, z, k_tdeBHstar, N_tdeBHstar, tde_type, m_avg, m_star, R_star, mBH, sBH, gBH, hBH, v_star, vBH, tdes, binaries, pairs, f_accreted, EoS = BH_TidalDisruptions(seed, t, z, k_tdeBHstar, N_tdeBHstar, tde_type, m_avg, m_star, R_star, mBH, sBH, gBH, hBH, v_star, vBH, tdes, binaries, pairs, f_accreted, EoS)
+        seed, t, z, k_tdeBHstar, N_tdeBHstar, tde_type, m_avg, m_star, R_star, mBH, sBH, gBH, hBH, v_star, vBH, tdes, binaries, pairs, f_accreted, EoS = BH_TidalDisruptions(seed, t, z, k_tdeBHstar, N_tdeBHstar, tde_type, m_avg, m_star, R_star, mBH, sBH, gBH, hBH, v_star, vBH, tdes, binaries, pairs, f_accreted, EoS, approx_mBH_sampling=config['approx_mBH_sampling'])
 
     # write back:
     state['seed'] = seed; state['t'] = t; state['z'] = z

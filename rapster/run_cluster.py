@@ -116,6 +116,7 @@ def parse_args():
     parser.add_argument('-mBH1gMin', '--min_1g_bh_mass', type=float, metavar=' ', default=3.0, help='Minimum 1g BH mass for uniform/Salpeter sampling [Msun]')
     parser.add_argument('-mBH1gMax', '--max_1g_bh_mass', type=float, metavar=' ', default=60.0, help='Maximum 1g BH mass for uniform/Salpeter sampling [Msun]')
     parser.add_argument('-RMP', '--random_mass_pairing_2body_3body', type=int, metavar=' ', default=0, help='Use uniform random pairing for 3bb and 2-body capture instead of mass-weighted (0 for no, 1 for yes)')
+    parser.add_argument('-AMS', '--approx_mBH_sampling', type=int, metavar=' ', default=0, help='Per-event BH sampling method in form_binaries. 0 = exact (np.random.choice / rejection, default); 1 = Fenwick-tree sampling (auxiliary.FenwickTree: O(log N) weighted draw + removal, build once per step; statistically equivalent to np.random.choice but NOT a bit-identical draw sequence)')
     parser.add_argument('-plot', '--generate_plots', type=int, metavar=' ', default=0, help='Generate diagnostic plots after simulation (0 for no, 1 for yes)')
     parser.add_argument('-analyze', '--analyze_results', type=int, metavar=' ', default=0, help='Print analysis summary after simulation (0 for no, 1 for yes)')
     parser.add_argument('-fA', '--accreted_fraction', type=float, metavar=' ', default=0.5, help='Fraction of a disrupted star accreted by the compact object')
@@ -167,6 +168,7 @@ def parse_args():
         'min_1g_bh_mass': args.min_1g_bh_mass,
         'max_1g_bh_mass': args.max_1g_bh_mass,
         'random_pairing': bool(args.random_mass_pairing_2body_3body),
+        'approx_mBH_sampling': int(args.approx_mBH_sampling),   # 0 exact, 1 approx running-sum, 2 bit-identical fast
         'generate_plots': bool(args.generate_plots),
         'analyze_results': bool(args.analyze_results),
         'f_accreted': args.accreted_fraction,

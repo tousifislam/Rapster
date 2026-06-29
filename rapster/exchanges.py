@@ -53,13 +53,17 @@ def StarStar_to_BHstar(seed, t, z, k_ex1, N_ex1, m_avg, mBH, sBH, gBH, hBH, ab, 
     """
  
     if k_ex1>0: # perform star-star -> BH-star exchange(s)
-        
+
         for i in range(k_ex1):
 
             if ab.size == 0:  # no star-star binaries left to exchange, exit loop
                 break
 
-            # sample mass of the BH that substitutes one of the stars:
+            # sample mass of the BH that substitutes one of the stars.
+            # NOTE: kept as exact np.random.choice on purpose (no -AMS/Fenwick path
+            # here). Profiling (PLAN.md #9) shows this exchange fires with k_ex1 ~ 1-2
+            # per step, so a per-step O(N) Fenwick build would never amortize and would
+            # be a net loss. Exact choice is the right call at this site.
             m = np.random.choice(mBH, p=mBH/np.sum(mBH))
             
             k = np.squeeze(np.where(mBH==m))+0
@@ -70,8 +74,10 @@ def StarStar_to_BHstar(seed, t, z, k_ex1, N_ex1, m_avg, mBH, sBH, gBH, hBH, ab, 
             g = gBH[k]
             h = hBH[k]
                 
+            # draw a star-star binary (over `ab`, the star-star semimajor axes).
+            # Exact on purpose: same low k_ex1 per step as above -> no Fenwick benefit.
             a = np.random.choice(ab, p=ab/np.sum(ab))
-                
+
             kss = np.squeeze(np.where(ab==a))+0
             
             kss = int(np.atleast_1d(kss)[0])
@@ -127,13 +133,17 @@ def BHstar_to_BBH(seed, t, z, k_ex2, N_ex2, m_avg, mBH, sBH, gBH, hBH, pairs, bi
     """
 
     if k_ex2>0: # perform BH-star -> BH-BH exchange(s)
-        
+
         for i in range(k_ex2):
 
             if mBH.size == 0: # no single BHs left for exchange, exit loop
                 break
 
-            # draw a single BH that will substitute the star in the BH-star pair:
+            # draw a single BH that will substitute the star in the BH-star pair.
+            # Exact on purpose (no -AMS/Fenwick): profiling shows k_ex2 ~ 1-2 per step,
+            # below the per-step O(N) build amortization threshold (PLAN.md #9). (Its
+            # weight also mixes a per-call scalar mean(pairs) with mBH, so a single
+            # reusable proposal tree wouldn't apply cleanly anyway.)
             m2 = np.random.choice(mBH, p=(np.mean(pairs[:, 1]) + mBH)/np.sum(np.mean(pairs[:, 1]) + mBH))
             
             # location of the sampled BH:
@@ -148,6 +158,8 @@ def BHstar_to_BBH(seed, t, z, k_ex2, N_ex2, m_avg, mBH, sBH, gBH, hBH, pairs, bi
             # draw a BH-star pair:
             if np.sum(pairs[:, 0]) == 0:
                 continue
+            # draw a BH-star pair (over `pairs[:,0]`). Exact on purpose: same low
+            # k_ex2 per step as above -> a per-step Fenwick build would not amortize.
             ap = np.random.choice(pairs[:, 0], p=pairs[:, 0] / np.sum(pairs[:, 0]))
             
             kp = np.squeeze(np.where(pairs[:, 0]==ap))+0

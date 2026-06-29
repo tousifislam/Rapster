@@ -20,8 +20,9 @@ from .constants import *
 from .functions import *
 from .stellar_evolution import *
 from .compact_accretion import *
+from .auxiliary import FenwickTree
 
-def BH_TidalDisruptions(seed, t, z, k_tde, N_tde, tde_type, m_avg, m_star, R_star, mBH, sBH, gBH, hBH, vSTAR, vBH, tdes, binaries, pairs, f_accreted, EoS):
+def BH_TidalDisruptions(seed, t, z, k_tde, N_tde, tde_type, m_avg, m_star, R_star, mBH, sBH, gBH, hBH, vSTAR, vBH, tdes, binaries, pairs, f_accreted, EoS, approx_mBH_sampling=False):
     """
     @in seed: seed number of the main simulation
     @in t: current time (Myr)
@@ -51,23 +52,47 @@ def BH_TidalDisruptions(seed, t, z, k_tde, N_tde, tde_type, m_avg, m_star, R_sta
         k_tde = 0
 
     if k_tde>0: # perform BH TDE(s)
-        
+
+        # approx_mBH_sampling: 0 = exact (np.random.choice + np.where); 1 = Fenwick.
+        # The TDE weight p=(m_star+mBH)*mBH**(1/3) depends only on mBH (m_star is
+        # fixed for this call), and the chosen BH is UPDATED (gains mass), never
+        # removed -- so build the weight tree ONCE, draw the index in O(log N)
+        # (no np.where), and after each TDE update that BH's weight in O(log N).
+        # Also maintain mBH's sum incrementally so the per-event mean (used only
+        # in the recorded v_rel) avoids a full O(N) np.mean each TDE.
+        # Only build the O(N) tree when there are enough TDEs in THIS call to
+        # amortize it: each exact draw is also O(N) and the build costs ~a few
+        # draws (break-even k_tde ~ 3, N-independent). Diffuse clusters fire
+        # micro-TDEs with k_tde ~ 1-2 over a multi-million mBH every step; building
+        # a tree there would be far slower than a couple of np.random.choice calls
+        # and would dominate runtime. Below the threshold, fall back to exact.
+        _FENWICK_MIN_TDE = 8
+        use_fenwick = (approx_mBH_sampling == 1) and (k_tde >= _FENWICK_MIN_TDE) and (mBH.size >= 2)
+        if use_fenwick:
+            tree = FenwickTree((m_star + mBH) * mBH**(1/3))
+            mBH_sum = float(mBH.sum())
+            n_bh = mBH.size
+
        	for i in range(k_tde):
-            
+
             if mBH.size==0: # BH pool exhausted mid-step
                 break
 
             N_tde+=1 # update number of BH TDEs
-            
+
             # sample single BH mass:
-            p = (m_star + mBH)*mBH**(1/3) # weighting probability
-            m = np.random.choice(mBH, p=p/np.sum(p))
-            
-            # find index location of that BH mass:
-            k = np.squeeze(np.where(mBH==m))+0
-            
-            k = int(np.atleast_1d(k)[0])
-            
+            if use_fenwick:
+                k = tree.sample()            # index drawn prop. to weight, O(log N)
+                m = mBH[k]
+            else:
+                p = (m_star + mBH)*mBH**(1/3) # weighting probability
+                m = np.random.choice(mBH, p=p/np.sum(p))
+
+                # find index location of that BH mass:
+                k = np.squeeze(np.where(mBH==m))+0
+
+                k = int(np.atleast_1d(k)[0])
+
             s = sBH[k] # get BH's (dimensionless) spin
             g = gBH[k] # get BH's generation
             h = hBH[k] # get BH's tdes count
@@ -113,19 +138,26 @@ def BH_TidalDisruptions(seed, t, z, k_tde, N_tde, tde_type, m_avg, m_star, R_sta
             s_new = evo['chi'][-1]
             
             # relative velocity:
-            v_rel = np.sqrt(vSTAR**2*m_avg/m_star + np.mean(mBH)/m*vBH**2)
-            
+            mean_mBH = (mBH_sum / n_bh) if use_fenwick else np.mean(mBH)
+            v_rel = np.sqrt(vSTAR**2*m_avg/m_star + mean_mBH/m*vBH**2)
+
             # append tde:
             tdes = np.append(tdes, [[seed, t, z, tde_type, m_star, R_star, m, s, g, r_t, r_p, beta, iota, r_mb, dm, s_new, v_rel, h]], axis=0)
-            
+
             # update BH mass:
             mBH[k] = m + dm
-            
+
             # update BH spin:
             sBH[k] = s_new
 
             # update BH tdes count:
             hBH[k] += 1
+
+            # keep the Fenwick weight and running mass-sum in sync with the BH that
+            # just accreted (its mass grew by dm; it stays in the pool):
+            if use_fenwick:
+                tree.set_weight(k, (m_star + mBH[k]) * mBH[k]**(1/3))
+                mBH_sum += dm
 
     return seed, t, z, k_tde, N_tde, tde_type, m_avg, m_star, R_star, mBH, sBH, gBH, hBH, vSTAR, vBH, tdes, binaries, pairs, f_accreted, EoS
 

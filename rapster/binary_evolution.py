@@ -23,8 +23,9 @@ from .remnant import *
 from .compact_accretion import *  # provides the evolve() spin-accretion routine
 from .stellar_evolution import *  # provides the get_star() field-star sampling routine
 from .tidal_disruptions import *  # provides the try_BBH_star_disruption() helper
+from .auxiliary import FenwickTree
 
-def evolve_BBHs(seed, t, z, dt, zCl_form, binaries, hardening, mergers, mBH, sBH, gBH, hBH, n_star, v_star, vBH, t_rlx, m_avg, mBH_avg, na_BH, nc_BH, N_BH, N_BBH, N_me, N_me2b, N_3cap, N_meFi, N_meRe, N_meEj, N_dis, N_ex, N_BHej, N_BBHej, N_hardening, Vc_BH, N_bb, triples, N_Triples, tdes, N_tdeBBHstar, m_min, m_max, f_accreted, EoS):
+def evolve_BBHs(seed, t, z, dt, zCl_form, binaries, hardening, mergers, mBH, sBH, gBH, hBH, n_star, v_star, vBH, t_rlx, m_avg, mBH_avg, na_BH, nc_BH, N_BH, N_BBH, N_me, N_me2b, N_3cap, N_meFi, N_meRe, N_meEj, N_dis, N_ex, N_BHej, N_BBHej, N_hardening, Vc_BH, N_bb, triples, N_Triples, tdes, N_tdeBBHstar, m_min, m_max, f_accreted, EoS, approx_mBH_sampling=False):
     """
     @in seed: simulation seed number
     @in t: simulation time
@@ -76,7 +77,35 @@ def evolve_BBHs(seed, t, z, dt, zCl_form, binaries, hardening, mergers, mBH, sBH
     
     # BBH evolution:
     if N_BBH>0:
-        
+
+        # --- Fenwick state for the BBH-BH single-BH draw (line ~397), used only
+        # when approx_mBH_sampling==1. That draw picks m3 prop. to
+        #   p3 = (m1+m2+mBH)/sqrt((m1+m2)**-2/5 + mBH**-2/5) * mBH**(3/2),
+        # an O(N) np.random.choice fired once per BBH-BH interaction (the single
+        # biggest sampling cost in the run -- see PLAN.md #9). We sample it instead
+        # by rejection: a reusable proposal tree on the mBH-only factor mBH**(3/2),
+        # with accept prob f(M,m)/f_max where f(M,m)=(M+m)/sqrt(M**-2/5+m**-2/5)
+        # (increasing in m, so f_max is at the largest BH). The tree is rebuilt
+        # only when mBH changes -- detected for free by object identity, since
+        # every mBH mutation here is an np.delete/np.append reassignment (there are
+        # no in-place mBH[k]=writes). To stay never-slower than exact, we only
+        # switch to the tree after _BE_WARMUP consecutive draws on the SAME mBH
+        # (the warmup resets on any mBH change), so singleton-interaction binaries
+        # never pay for a build and long hardening flyby-streaks amortize one.
+        _be_use = (approx_mBH_sampling == 1)
+        _BE_WARMUP = 2     # build the tree after this many consecutive same-mBH draws
+        _be_src = None     # the mBH array object the tree/run were built/counted on
+        _be_tree = None
+        _be_maxm = None
+        _be_run = 0        # consecutive BBH-BH draws on the current (unchanged) mBH
+        # cached fractional powers of the CURRENT mBH (computed once per mBH, reused
+        # by BOTH the exact p3 and the Fenwick tree; invalidated when mBH changes).
+        # These powers are the costliest part of the exact draw, so caching them
+        # speeds up even the isolated draws that never reach the warmup. The cached
+        # values are bit-identical to recomputing them inline.
+        _be_pow32 = None   # mBH**(3/2)
+        _be_pown25 = None  # mBH**(-2/5)
+
         # shuffle binaries to avoid biases:
         np.random.shuffle(binaries[1:])  # shuffle all BBH rows excluding the placeholder first row
         
@@ -269,6 +298,9 @@ def evolve_BBHs(seed, t, z, dt, zCl_form, binaries, hardening, mergers, mBH, sBH
                     valid = np.where(masses * smas > 0)[0]
                     if len(valid) < 1:
                         continue
+                    # Exact on purpose (no Fenwick): this draws over the BINARY
+                    # population `smas` (~10^3), not the BH population, so the O(N)
+                    # cost is already small and a Fenwick tree is not worth it.
                     a2 = np.random.choice(smas[valid], p=(masses * smas)[valid] / np.sum((masses * smas)[valid]))
 
                     # index of current BBH:
@@ -388,12 +420,51 @@ def evolve_BBHs(seed, t, z, dt, zCl_form, binaries, hardening, mergers, mBH, sBH
 
                     if mBH.size == 0:  # no single BHs left to interact with, skip
                         continue
-                    p3 = (m1 + m2 + mBH) / np.sqrt((m1 + m2)**(-2/5) + mBH**(-2/5)) * mBH**(3/2)
-                    m3 = np.random.choice(mBH, replace=False, p=p3/np.sum(p3))
-                    
-                    k3 = np.squeeze(np.where(mBH==m3))+0
-                    
-                    k3 = int(np.atleast_1d(k3)[0])
+
+                    # advance the same-mBH run counter (Fenwick only). Any mBH
+                    # mutation anywhere in this function reassigns the array, so a
+                    # changed object identity resets the run and marks the tree stale:
+                    if _be_use and mBH.size >= 2:
+                        if mBH is not _be_src:
+                            _be_src = mBH
+                            _be_run = 0
+                            _be_tree = None
+                            _be_pow32 = None       # invalidate cached mBH powers
+                            _be_pown25 = None
+                        if _be_pow32 is None:      # compute once per mBH; reused below
+                            _be_pow32 = mBH**(3/2)
+                            _be_pown25 = mBH**(-2/5)
+                        _be_run += 1
+
+                    # draw the interacting single BH m3 (and its index k3):
+                    if _be_use and mBH.size >= 2 and _be_run > _BE_WARMUP:
+                        # Fenwick rejection draw off the reusable mBH**(3/2) proposal
+                        # tree; accept prop. to f(M,m)=(M+m)/sqrt(M**-2/5+m**-2/5),
+                        # which is increasing in m so f_max is at the largest BH.
+                        M12 = m1 + m2
+                        if _be_tree is None:           # build once per unchanged-mBH run
+                            _be_tree = FenwickTree(_be_pow32)   # cached mBH**(3/2)
+                            _be_maxm = mBH.max()
+                        f_max = (M12 + _be_maxm) / np.sqrt(M12**(-2/5) + _be_maxm**(-2/5))
+                        while True:
+                            k3 = _be_tree.sample()
+                            mm = mBH[k3]
+                            if np.random.rand() < (M12 + mm) / np.sqrt(M12**(-2/5) + mm**(-2/5)) / f_max:
+                                break
+                        m3 = mBH[k3]
+                    else:
+                        # exact path (also used during warmup). Under -AMS 1 reuse the
+                        # cached fractional powers (bit-identical to recomputing); under
+                        # -AMS 0 keep the original expression untouched (byte-identity).
+                        if _be_use and mBH.size >= 2:
+                            p3 = (m1 + m2 + mBH) / np.sqrt((m1 + m2)**(-2/5) + _be_pown25) * _be_pow32
+                        else:
+                            p3 = (m1 + m2 + mBH) / np.sqrt((m1 + m2)**(-2/5) + mBH**(-2/5)) * mBH**(3/2)
+                        m3 = np.random.choice(mBH, replace=False, p=p3/np.sum(p3))
+
+                        k3 = np.squeeze(np.where(mBH==m3))+0
+
+                        k3 = int(np.atleast_1d(k3)[0])
                     
                     s3 = sBH[k3]
                     g3 = gBH[k3]
